@@ -89,7 +89,7 @@
 
 ---
 
-## 第3天（日期：2026年7月13日）
+## 第3天（日期：2026年7月8日）
 
 ### 上午：Stream高级特性、JMH基准测试与Mockito单元测试
 
@@ -109,3 +109,20 @@
 
 #### 今日小结
 完成了自定义 FunnelCollector 的编写，实现了 Collector 接口的 supplier/accumulator/combiner/finisher/characteristics 五个方法，支持顺序流和并行流两种模式。并行流统计使用了 ConcurrentHashMap 线程安全容器。JMH 基准测试对比了顺序流(8.69 ops/s)、并行流(9.27 ops/s)和自定义收集器(8.30 ops/s)的吞吐量，在10万条数据规模下并行流略优但差异不大。Mockito 单元测试通过模拟 DAO 层实现了6个测试用例，无需真实数据库即可验证统计逻辑。
+
+### 下午：选题核心编码、异步预热与REST API
+
+#### 任务完成情况
+- [x] 使用 record 定义 StatsDTO（统计结果DTO）
+- [x] 使用 record 定义 ApiResponse（统一API响应格式）
+- [x] 创建 CacheWarmupService（CompletableFuture 异步预热4种缓存）
+- [x] 重写 ApiServer.java（7个REST端点 + 全局异常处理 + CORS）
+- [x] 运行集成测试：顺序流 vs 并行流 vs 自定义收集器 JMH 对比
+- [x] HTTP 端点验证（/api/health、/api/stats、/api/stats/event-type、/api/stats/funnel 等）
+
+#### 遇到的问题与解决
+- 问题：通过 mvn exec:java -pl web 启动 ApiServer 时，后台线程预热报错 "No suitable driver"，HikariCP 无法初始化 MySQL 连接。
+- 解决：exec:java 的 URLClassLoader 无法正确加载 MySQL 驱动的 ServiceLoader 注册机制。改用 mvn package 构建 shade 胖 JAR 后通过 java -jar web/target/web-1.0-SNAPSHOT-shaded.jar 运行，驱动正常加载，4 项缓存全部预热成功。
+
+#### 今日小结
+完成了选题 D 的全部核心编码：StatsDTO 和 ApiResponse 两个 record DTO、CompletableFuture 异步缓存预热服务、以及基于 Javalin 的 7 个 REST API 端点。应用启动后缓存自动在后台预热，HTTP 接口优先返回缓存数据（fromCache=true），缓存未命中时实时计算并回填。通过 shade 胖 JAR 方式运行解决了类加载问题。验证了所有端点返回正确的 JSON 数据。
