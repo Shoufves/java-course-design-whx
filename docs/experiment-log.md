@@ -43,3 +43,46 @@
 
 #### 今日小结
 根据选题D（用户行为漏斗分析）的业务需求，设计了 user 和 user_log 两张核心表，绘制了 E-R 图并编写了数据字典。建表 SQL 包含主键、外键、索引和注释。Logback 日志框架配置为控制台和文件双输出，支持按天滚动。
+
+---
+
+## 第2天（日期：2026年7月7日）
+
+### 上午：数据生成与批量导入
+
+#### 任务完成情况
+- [x] DataFaker 依赖已在 core/pom.xml 中确认
+- [x] 编写 DataGenerator.java（用户生成 + 行为日志生成）
+- [x] HikariCP 连接池通过 DataSourceFactory 自动管理
+- [x] JDBC 批量插入（BATCH_SIZE=1000）
+- [x] 执行 10 万条数据生成与导入
+- [x] 验证数据完整性
+
+#### 遇到的问题与解决
+没有遇到什么问题。
+
+#### 今日小结
+使用 DataFaker 生成了 10,000 个用户和 100,000 条用户行为日志，通过 JDBC 批量插入 + rewriteBatchedStatements=true 实现高速写入，总耗时仅 3 秒。验证确认：总记录数 100,000、事件类型分布 view(25K) > cart(25K) > order(25K) > pay(25K)、独立用户约 9,999、用户数 10,000。
+
+### 下午：Stream API聚合与Redis缓存
+
+#### 任务完成情况
+- [x] 创建 UserLog.java（record不可变DTO）
+- [x] 创建 UserLogDao.java（数据访问层）
+- [x] 创建 StatsService.java（5种Stream API聚合统计）
+- [x] 创建 ReportGenerator.java（文本报表生成器）
+- [x] 创建 CacheService.java（Jedis Redis缓存服务）
+- [x] 创建 StatsIntegrationTest.java（集成测试）
+- [x] 运行集成测试，所有统计结果正确
+- [x] Redis 缓存写入/读取验证通过
+- [x] report.txt 报表已生成
+
+#### 遇到的问题与解决
+- 问题：首次运行 StatsIntegrationTest 时，mvn exec:java 报 `ClassNotFoundException`，找不到 test 目录下的类。
+- 解决：exec:java 默认只在 main 源码目录执行，添加参数 `-Dexec.classpathScope=test` 后，test 目录下的类也能被加载运行。
+
+- 问题：漏斗转化率统计结果显示 view→cart 转化率达到 100.23%（超过 100%），不符合业务直觉。
+- 解决：分析发现这是因为数据是随机生成的，user_id 在各事件类型中均匀分布，并非真实的漏斗行为序列。这是合成数据的自然特性，真实的用户行为漏斗需要按时间序列计算每个用户的转化路径，后续可使用自定义收集器优化。
+
+#### 今日小结
+完成了 Stream API 聚合统计的全部 5 种分析方法：按事件类型、按渠道、按天 PV/UV、漏斗转化率、商品类别 TopN。统计结果通过 Jedis 缓存到 Redis（key: stats:eventType，过期时间 1 小时），并生成了格式化的文本报表 report.txt。集成测试验证了从数据库读取 → Stream 聚合 → Redis 缓存 → 报表导出的完整链路。

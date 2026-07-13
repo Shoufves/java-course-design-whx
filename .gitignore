@@ -16,6 +16,9 @@ target/
 logs/
 *.log
 
+# Generated reports
+report.txt
+
 # OS
 .DS_Store
 Thumbs.db
