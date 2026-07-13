@@ -1,5 +1,6 @@
 package edu.gpnu.bigdata.service;
 
+import edu.gpnu.bigdata.collector.FunnelCollector;
 import edu.gpnu.bigdata.dao.UserLogDao;
 import edu.gpnu.bigdata.entity.UserLog;
 import org.slf4j.Logger;
@@ -7,6 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import java.time.LocalDate;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 /**
@@ -174,5 +176,67 @@ public class StatsService {
 
         logger.info("Top{}商品类别: {}", topN, result);
         return result;
+    }
+
+    // ========== 以下为3.1新增方法 ==========
+
+    /**
+     * 统计6：使用自定义FunnelCollector一次性完成漏斗统计
+     */
+    public Map<String, Long> countFunnelWithCustomCollector() {
+        List<UserLog> logs = dao.findAll();
+        Map<String, Long> result = logs.stream()
+                .collect(FunnelCollector.toFunnel());
+        logger.info("自定义收集器漏斗统计完成: {}", result);
+        return result;
+    }
+
+    /**
+     * 统计7：使用并行流按事件类型统计（大数据量自动切换）
+     */
+    public Map<String, Long> countByEventTypeParallel() {
+        List<UserLog> logs = dao.findAll();
+        boolean useParallel = logs.size() > 50_000;
+        Map<String, Long> result;
+        if (useParallel) {
+            logger.info("数据量{}，使用并行流", logs.size());
+            result = logs.parallelStream()
+                    .collect(Collectors.groupingBy(
+                            UserLog::eventType,
+                            Collectors.counting()
+                    ));
+        } else {
+            logger.info("数据量{}，使用顺序流", logs.size());
+            result = logs.stream()
+                    .collect(Collectors.groupingBy(
+                            UserLog::eventType,
+                            Collectors.counting()
+                    ));
+        }
+        logger.info("并行流按事件类型统计完成: {}", result);
+        return result;
+    }
+
+    /**
+     * 统计8：并行流 + 线程安全容器统计各事件独立用户数
+     */
+    public Map<String, Set<Long>> countEventUsersParallel() {
+        List<UserLog> logs = dao.findAll();
+        Map<String, Set<Long>> eventUsers = logs.parallelStream()
+                .collect(
+                        ConcurrentHashMap::new,
+                        (map, log) -> map.computeIfAbsent(
+                                log.eventType(),
+                                k -> ConcurrentHashMap.newKeySet()
+                        ).add(log.userId()),
+                        (map1, map2) -> {
+                            map2.forEach((key, set) -> {
+                                map1.computeIfAbsent(key, k -> ConcurrentHashMap.newKeySet())
+                                        .addAll(set);
+                            });
+                        }
+                );
+        logger.info("并行流统计各事件用户数完成");
+        return eventUsers;
     }
 }

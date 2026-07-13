@@ -86,3 +86,26 @@
 
 #### 今日小结
 完成了 Stream API 聚合统计的全部 5 种分析方法：按事件类型、按渠道、按天 PV/UV、漏斗转化率、商品类别 TopN。统计结果通过 Jedis 缓存到 Redis（key: stats:eventType，过期时间 1 小时），并生成了格式化的文本报表 report.txt。集成测试验证了从数据库读取 → Stream 聚合 → Redis 缓存 → 报表导出的完整链路。
+
+---
+
+## 第3天（日期：2026年7月13日）
+
+### 上午：Stream高级特性、JMH基准测试与Mockito单元测试
+
+#### 任务完成情况
+- [x] 理解 Collector 接口的五个核心方法
+- [x] 创建 FunnelCollector.java 自定义收集器（实现 Collector 接口全部5方法）
+- [x] StatsService 追加 countFunnelWithCustomCollector() 方法
+- [x] StatsService 追加并行流统计方法（countByEventTypeParallel / countEventUsersParallel）
+- [x] 创建 StreamBenchmark.java（JMH基准测试，3个@Benchmark方法）
+- [x] 运行 JMH 基准测试
+- [x] 创建 StatsServiceTest.java（Mockito 模拟 DAO 层）
+- [x] 6个单元测试全部通过
+
+#### 遇到的问题与解决
+- 问题：JMH 通过 mvn exec:java 运行时 forked VM 报 ClassNotFoundException: ForkedMain。
+- 解决：JMH 分叉模式需要独立的 classpath。改用 mvn package 构建 benchmark/target/benchmarks.jar，再通过 java -jar 直接运行，三个 @Benchmark 全部执行成功。
+
+#### 今日小结
+完成了自定义 FunnelCollector 的编写，实现了 Collector 接口的 supplier/accumulator/combiner/finisher/characteristics 五个方法，支持顺序流和并行流两种模式。并行流统计使用了 ConcurrentHashMap 线程安全容器。JMH 基准测试对比了顺序流(8.69 ops/s)、并行流(9.27 ops/s)和自定义收集器(8.30 ops/s)的吞吐量，在10万条数据规模下并行流略优但差异不大。Mockito 单元测试通过模拟 DAO 层实现了6个测试用例，无需真实数据库即可验证统计逻辑。
