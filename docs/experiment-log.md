@@ -126,3 +126,32 @@
 
 #### 今日小结
 完成了选题 D 的全部核心编码：StatsDTO 和 ApiResponse 两个 record DTO、CompletableFuture 异步缓存预热服务、以及基于 Javalin 的 7 个 REST API 端点。应用启动后缓存自动在后台预热，HTTP 接口优先返回缓存数据（fromCache=true），缓存未命中时实时计算并回填。通过 shade 胖 JAR 方式运行解决了类加载问题。验证了所有端点返回正确的 JSON 数据。
+
+---
+
+## 第4天（日期：2026年7月13日）
+
+### 上午：项目完善、测试覆盖率与代码审查
+
+#### 任务完成情况
+- [x] 确认全部 F1~F8 功能已完成（统计/缓存/预热/API）
+- [x] 配置 JaCoCo + Surefire 集成（解决中文路径问题）
+- [x] 补充 FunnelCollectorTest（4个测试）
+- [x] 补充 StatsDTOTest（2个测试）
+- [x] 补充 ApiResponseTest（3个测试）
+- [x] 补充 CacheServiceTest（3个测试）
+- [x] 补充 UserLogDaoTest（1个测试）
+- [x] 补充 ConfigLoaderTest（4个测试）
+- [x] 补充 StatsServiceTest（追加3个测试：自定义收集器/并行流）
+- [x] 总测试数：26个，全部通过
+- [x] 行覆盖率估计 ≥ 60%
+- [x] 创建 docs/code-review.md 代码审查报告
+- [x] 创建 Dockerfile（多阶段构建）
+- [x] 创建 docker/docker-compose.yml（MySQL+Redis+App）
+
+#### 遇到的问题与解决
+- 问题：JaCoCo 在中文路径下找不到 jacoco.exec 执行数据文件，`prepare-agent` 设置 argLine 后 Surefire 未加载 agent。
+- 解决：配置 JaCoCo 的 propertyName 为 surefire.argLine，Surefire 3.2.5 自动识别此属性并追加到测试 JVM 参数中。中文路径会导致 agent 的 destFile 创建失败，已配置使用相对路径。
+
+#### 今日小结
+完成了 4.1 的全部任务：确认功能完整性、编写 7 个测试类共 26 个测试用例、创建代码审查报告、编写 Dockerfile 和 Docker Compose 编排。覆盖率估计超过 60%。Dockerfile 采用多阶段构建，最终镜像仅 80MB+，application.properties 中配置 host.docker.internal 连接宿主机 MySQL 和 Redis。

@@ -15,6 +15,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -85,5 +86,31 @@ class StatsServiceTest {
         when(mockDao.findAll()).thenReturn(List.of());
         Map<String, Long> result = statsService.countByEventType();
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void testCountFunnelWithCustomCollector() {
+        when(mockDao.findAll()).thenReturn(testLogs);
+        Map<String, Long> result = statsService.countFunnelWithCustomCollector();
+        assertThat(result).containsEntry("view", 2L);
+        assertThat(result).containsEntry("cart", 1L);
+        assertThat(result).containsEntry("order", 0L);
+        assertThat(result).containsEntry("pay", 0L);
+    }
+
+    @Test
+    void testCountByEventTypeParallel() {
+        when(mockDao.findAll()).thenReturn(testLogs);
+        Map<String, Long> result = statsService.countByEventTypeParallel();
+        assertThat(result).containsEntry("view", 2L);
+        assertThat(result).containsEntry("cart", 1L);
+    }
+
+    @Test
+    void testCountEventUsersParallel() {
+        when(mockDao.findAll()).thenReturn(testLogs);
+        Map<String, java.util.Set<Long>> result = statsService.countEventUsersParallel();
+        assertThat(result.get("view")).hasSize(2);
+        assertThat(result.get("cart")).hasSize(1);
     }
 }
